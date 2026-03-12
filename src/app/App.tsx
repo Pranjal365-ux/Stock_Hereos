@@ -60,6 +60,13 @@ function saveState<T>(key: string, value: T) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
 }
 
+// Bump this version string any time you want to wipe all saved state
+const STATE_VERSION = 'v2';
+if (localStorage.getItem('sh_version') !== STATE_VERSION) {
+  ['sh_cash', 'sh_portfolio', 'sh_points', 'sh_screen'].forEach(k => localStorage.removeItem(k));
+  localStorage.setItem('sh_version', STATE_VERSION);
+}
+
 // Screens that should not be persisted — always re-enter from dashboard
 const TRANSIENT_SCREENS: Screen[] = ['splash', 'mode-selection', 'learning', 'quiz', 'reward', 'arena-decision', 'arena-result', 'quiz-taking', 'quiz-result'];
 
@@ -82,7 +89,7 @@ export default function App() {
   const [userMode, setUserMode] = useState<string | null>(() => localStorage.getItem('stockheroes_mode'));
   const [selectedArena, setSelectedArena] = useState<string>('apple-2012');
   const [arenaResultData, setArenaResultData] = useState<ArenaResultData | null>(null);
-  const [virtualCash, setVirtualCash] = useState<number>(() => loadState('sh_cash', 50000));
+  const [virtualCash, setVirtualCash] = useState<number>(() => loadState('sh_cash', 0));
   const [portfolio, setPortfolio] = useState<PortfolioHolding[]>(() => loadState('sh_portfolio', []));
   const [userPoints, setUserPoints] = useState<number>(() => loadState('sh_points', 450));
   const [selectedQuizId, setSelectedQuizId] = useState<string>('');
@@ -234,7 +241,7 @@ export default function App() {
           else if (screen === 'portfolio') setCurrentScreen('portfolio');
           else if (screen === 'leaderboard') setCurrentScreen('leaderboard');
           else if (screen === 'quizzes') setCurrentScreen('quizzes');
-        }} virtualCash={virtualCash} />;
+        }} virtualCash={virtualCash} userMode={userMode ?? 'beginner'} />;
       
       case 'arena':
         return (

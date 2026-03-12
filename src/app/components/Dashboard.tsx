@@ -3,10 +3,12 @@ import { TrendingUp, Clock, Briefcase, Lightbulb, ArrowRight, Trophy, Target } f
 interface DashboardProps {
   onNavigate: (screen: string) => void;
   virtualCash: number;
+  userMode: string;
 }
 
-export default function Dashboard({ onNavigate, virtualCash }: DashboardProps) {
+export default function Dashboard({ onNavigate, virtualCash, userMode }: DashboardProps) {
   const formatCurrency = (amount: number) => amount.toLocaleString('en-IN');
+  const badgeLabel = userMode === 'intermediate' ? '📈 Intermediate Investor' : '⭐ Beginner Investor';
 
   const navCards = [
     { screen:'trading',    icon:<TrendingUp className="w-6 h-6"/>, title:'Trade Live',           desc:'Practice with real market data',  accent:'action-card-blue',   iconBg:'rgba(79,158,255,0.2)', iconColor:'#60a5fa' },
@@ -25,7 +27,7 @@ export default function Dashboard({ onNavigate, virtualCash }: DashboardProps) {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-white text-xl mb-2">Welcome back!</h2>
-            <span className="badge badge-gold">⭐ Beginner Investor</span>
+            <span className="badge badge-gold">{badgeLabel}</span>
           </div>
           <div className="w-12 h-12 rounded-full flex items-center justify-center text-xl"
             style={{background:'linear-gradient(135deg,rgba(234,179,8,0.3),rgba(249,115,22,0.3))', border:'1px solid rgba(234,179,8,0.4)'}}>
