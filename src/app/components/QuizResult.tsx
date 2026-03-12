@@ -4,12 +4,13 @@ interface QuizResultProps {
   score: number;
   totalQuestions: number;
   pointsEarned: number;
+  cashEarned: number;
   quizTitle: string;
   onContinue: () => void;
   onRetry: () => void;
 }
 
-export default function QuizResult({ score, totalQuestions, pointsEarned, quizTitle, onContinue, onRetry }: QuizResultProps) {
+export default function QuizResult({ score, totalQuestions, pointsEarned, cashEarned, quizTitle, onContinue, onRetry }: QuizResultProps) {
   const percentage = (score / totalQuestions) * 100;
 
   const getPerf = () => {
@@ -56,6 +57,14 @@ export default function QuizResult({ score, totalQuestions, pointsEarned, quizTi
               </div>
             </div>
           </div>
+
+          {cashEarned > 0 && (
+            <div className="p-4 rounded-xl mb-4 animate-scale-in" style={{background:'rgba(34,197,94,0.1)', border:'1px solid rgba(34,197,94,0.3)'}}>
+              <p style={{color:'rgba(74,222,128,0.7)', fontSize:'0.75rem', marginBottom:'0.3rem'}}>💰 Virtual Cash Earned</p>
+              <p style={{color:'#4ade80'}} className="text-2xl font-semibold">+₹{cashEarned.toLocaleString('en-IN')}</p>
+              <p style={{color:'rgba(74,222,128,0.5)', fontSize:'0.7rem', marginTop:'0.2rem'}}>Added to your trading balance!</p>
+            </div>
+          )}
 
           <div className="p-3 rounded-xl" style={{background:'rgba(133,79,108,0.15)', border:'1px solid rgba(133,79,108,0.2)'}}>
             <p style={{color:'rgba(223,182,178,0.6)', fontSize:'0.8rem'}}>Quiz: {quizTitle}</p>

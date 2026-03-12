@@ -86,10 +86,12 @@ export default function App() {
   const [portfolio, setPortfolio] = useState<PortfolioHolding[]>(() => loadState('sh_portfolio', []));
   const [userPoints, setUserPoints] = useState<number>(() => loadState('sh_points', 450));
   const [selectedQuizId, setSelectedQuizId] = useState<string>('');
+  const [quizCashEarned, setQuizCashEarned] = useState<number>(0);
   const [quizResultData, setQuizResultData] = useState<{
     score: number;
     totalQuestions: number;
     pointsEarned: number;
+    cashEarned: number;
     quizTitle: string;
   } | null>(null);
 
@@ -216,10 +218,14 @@ export default function App() {
         return <LearningModule onComplete={() => setCurrentScreen('quiz')} />;
       
       case 'quiz':
-        return <QuizScreen onComplete={() => setCurrentScreen('reward')} />;
+        return <QuizScreen onComplete={(cash) => {
+          setQuizCashEarned(cash);
+          setVirtualCash(prev => prev + cash);
+          setCurrentScreen('reward');
+        }} />;
       
       case 'reward':
-        return <RewardScreen onContinue={() => setCurrentScreen('dashboard')} />;
+        return <RewardScreen cashEarned={quizCashEarned} onContinue={() => setCurrentScreen('dashboard')} />;
       
       case 'dashboard':
         return <Dashboard onNavigate={(screen) => {
@@ -284,7 +290,7 @@ export default function App() {
         );
       
       case 'leaderboard':
-        return <Leaderboard onBack={() => setCurrentScreen('dashboard')} />;
+        return <Leaderboard onBack={() => setCurrentScreen('dashboard')} userPoints={userPoints} />;
       
       case 'quizzes':
         return (
@@ -301,11 +307,14 @@ export default function App() {
             quizId={selectedQuizId}
             onComplete={(score, totalQuestions, pointsEarned) => {
               const quiz = getQuizById(selectedQuizId);
+              const cashEarned = Math.floor((score / totalQuestions) * 500); // up to ₹500 per quiz
               setUserPoints(prev => prev + pointsEarned);
+              setVirtualCash(prev => prev + cashEarned);
               setQuizResultData({
                 score,
                 totalQuestions,
                 pointsEarned,
+                cashEarned,
                 quizTitle: quiz?.title || 'Quiz'
               });
               setCurrentScreen('quiz-result');
@@ -320,6 +329,7 @@ export default function App() {
             score={quizResultData.score}
             totalQuestions={quizResultData.totalQuestions}
             pointsEarned={quizResultData.pointsEarned}
+            cashEarned={quizResultData.cashEarned}
             quizTitle={quizResultData.quizTitle}
             onContinue={() => setCurrentScreen('dashboard')}
             onRetry={() => setCurrentScreen('quizzes')}
