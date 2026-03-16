@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { availableStocks, Stock } from '../data/stockData';
 import { fetchAllLiveStocks, fetchIntradayChart, LiveStockData } from '../services/stockApi';
 
-export type StockStatus = 'loading' | 'live' | 'stale' | 'error';
+export type StockStatus = 'loading' | 'live' | 'stale' | 'error' | 'no_key';
 
 export interface EnrichedStock extends Stock {
   dayHigh?: number;
@@ -21,17 +21,15 @@ interface UseStockDataReturn {
   getStockById: (id: string) => EnrichedStock | undefined;
 }
 
-const REFRESH_INTERVAL_MS = 60_000; // 1 minute
+const REFRESH_INTERVAL_MS = 60_000;
+const MAX_RETRIES = 2;
+const RETRY_DELAY_MS = 2000;
 
-// Start with static data so UI never shows empty
 function buildStaticStocks(): EnrichedStock[] {
   return availableStocks.map(s => ({ ...s }));
 }
 
-function mergeWithLive(
-  base: EnrichedStock[],
-  liveMap: Map<string, LiveStockData>
-): EnrichedStock[] {
+function mergeWithLive(base: EnrichedStock[], liveMap: Map<string, LiveStockData>): EnrichedStock[] {
   return base.map(stock => {
     const live = liveMap.get(stock.id);
     if (!live) return stock;
@@ -49,6 +47,18 @@ function mergeWithLive(
   });
 }
 
+function hasApiKey(): boolean {
+  // Check if placeholder key is still there
+  try {
+    // Dynamically import to read the constant - we check via a fetch attempt
+    return true; // actual key check happens in fetchAllLiveStocks
+  } catch { return false; }
+}
+
+async function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 export function useStockData(): UseStockDataReturn {
   const [stocks, setStocks] = useState<EnrichedStock[]>(buildStaticStocks);
   const [chartData, setChartData] = useState<Record<string, number[]>>({});
@@ -56,24 +66,34 @@ export function useStockData(): UseStockDataReturn {
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasFetched = useRef(false);
+  const isFetching = useRef(false);
 
   const fetchLive = useCallback(async () => {
-    try {
-      const liveMap = await fetchAllLiveStocks();
+    if (isFetching.current) return;
+    isFetching.current = true;
 
-      if (liveMap.size === 0) {
-        setStatus(hasFetched.current ? 'stale' : 'error');
-        return;
+    let liveMap: Map<string, LiveStockData> = new Map();
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        liveMap = await fetchAllLiveStocks();
+        if (liveMap.size > 0) break;
+      } catch {
+        // failed attempt
       }
+      if (attempt < MAX_RETRIES) await sleep(RETRY_DELAY_MS * attempt);
+    }
 
+    if (liveMap.size > 0) {
       setStocks(prev => mergeWithLive(prev, liveMap));
       setStatus('live');
       setLastRefreshed(new Date());
-      
       hasFetched.current = true;
-    } catch {
+    } else {
       setStatus(hasFetched.current ? 'stale' : 'error');
     }
+
+    isFetching.current = false;
   }, []);
 
   const fetchCharts = useCallback(async () => {
@@ -84,9 +104,7 @@ export function useStockData(): UseStockDataReturn {
       })
     );
     const map: Record<string, number[]> = {};
-    entries.forEach(([id, data]) => {
-      if (data.length > 0) map[id] = data;
-    });
+    entries.forEach(([id, data]) => { if (data.length > 0) map[id] = data; });
     if (Object.keys(map).length > 0) setChartData(map);
   }, []);
 
@@ -99,11 +117,8 @@ export function useStockData(): UseStockDataReturn {
   useEffect(() => {
     fetchLive();
     fetchCharts();
-
     intervalRef.current = setInterval(fetchLive, REFRESH_INTERVAL_MS);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [fetchLive, fetchCharts]);
 
   const getStockById = useCallback(
