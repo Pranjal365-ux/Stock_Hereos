@@ -18,7 +18,7 @@ export interface LiveStockData {
 }
 
 // ─── PASTE YOUR FINNHUB API KEY HERE ───────────────────────────────────────
-const FINNHUB_API_KEY = 'YOUR_FINNHUB_API_KEY';
+const FINNHUB_API_KEY = 'd6rstfhr01qrri55ees0d6rstfhr01qrri55eesg';
 // ───────────────────────────────────────────────────────────────────────────
 
 const BASE_URL = 'https://finnhub.io/api/v1';
