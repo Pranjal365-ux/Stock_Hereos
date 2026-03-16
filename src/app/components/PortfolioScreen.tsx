@@ -1,19 +1,27 @@
 import { ArrowLeft, TrendingUp, TrendingDown, AlertCircle } from 'lucide-react';
 import { PortfolioHolding } from '../App';
-import { useStockData } from '../hooks/useStockData';
+import { EnrichedStock, StockStatus } from '../hooks/useStockData';
+
+interface StockDataProps {
+  stocks: EnrichedStock[];
+  status: StockStatus;
+  getStockById: (id: string) => EnrichedStock | undefined;
+}
 
 interface PortfolioScreenProps {
   onBack: () => void;
   virtualCash: number;
   portfolio: PortfolioHolding[];
+  stockData: StockDataProps;
 }
 
 const colorAccents: {[k:string]: string} = {
   reliance:'#3b82f6', tcs:'#6366f1', infosys:'#a855f7', hdfc:'#ec4899', bharti:'#f97316'
 };
 
-export default function PortfolioScreen({ onBack, virtualCash, portfolio }: PortfolioScreenProps) {
-  const { getStockById, status } = useStockData();
+export default function PortfolioScreen({ onBack, virtualCash, portfolio, stockData }: PortfolioScreenProps) {
+  const { getStockById, status } = stockData;
+
   const holdings = portfolio.map(holding => {
     const stock = getStockById(holding.stockId);
     if (!stock) return null;
@@ -48,8 +56,15 @@ export default function PortfolioScreen({ onBack, virtualCash, portfolio }: Port
         <button onClick={onBack} className="back-btn mb-4">
           <ArrowLeft className="w-4 h-4" /><span>Back</span>
         </button>
-        <h1 className="display-title text-3xl mb-1">Your Portfolio</h1>
-        <p style={{color:'rgba(223,182,178,0.55)'}}>Track your virtual investments</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="display-title text-3xl mb-1">Your Portfolio</h1>
+            <p style={{color:'rgba(223,182,178,0.55)'}}>Track your virtual investments</p>
+          </div>
+          <span style={{fontSize:'0.7rem', color: status === 'live' ? '#4ade80' : '#fbbf24'}}>
+            {status === 'live' ? '🟢 Live' : '⚠️ Cached'}
+          </span>
+        </div>
       </div>
 
       {/* Portfolio Value */}
@@ -58,14 +73,14 @@ export default function PortfolioScreen({ onBack, virtualCash, portfolio }: Port
         <h1 className="shimmer-text text-3xl mb-3">₹{totalPortfolioValue.toLocaleString('en-IN', {maximumFractionDigits:0})}</h1>
         <div className="flex gap-4 text-sm mb-3" style={{color:'rgba(223,182,178,0.55)'}}>
           <span>Cash: ₹{virtualCash.toLocaleString('en-IN', {maximumFractionDigits:0})}</span>
-          <span>Invested: ₹{totalCurrentValue.toLocaleString('en-IN', {maximumFractionDigits:0})}</span>
+          <span>Stocks: ₹{totalCurrentValue.toLocaleString('en-IN', {maximumFractionDigits:0})}</span>
         </div>
         {totalInvestedValue > 0 && (
           <div className="flex items-center gap-2" style={{color: isProfit ? '#4ade80' : '#f87171'}}>
             {isProfit ? <TrendingUp className="w-4 h-4"/> : <TrendingDown className="w-4 h-4"/>}
             <span className="text-sm font-semibold">
               {isProfit ? '+' : ''}₹{Math.abs(totalProfitLoss).toLocaleString('en-IN', {maximumFractionDigits:0})}
-              {' '}({isProfit ? '+' : ''}{totalProfitPercent.toFixed(2)}%)
+              {' '}({isProfit ? '+' : ''}{totalProfitPercent.toFixed(2)}%) unrealised
             </span>
           </div>
         )}
@@ -108,12 +123,18 @@ export default function PortfolioScreen({ onBack, virtualCash, portfolio }: Port
                     <div className="flex-1">
                       <h4 className="text-white text-sm">{stock!.name}</h4>
                       <p style={{color:'rgba(223,182,178,0.45)', fontSize:'0.75rem'}}>
-                        Qty: {stock!.quantity} · Avg: ₹{stock!.avgPrice.toFixed(2)}
+                        {stock!.quantity} shares · Avg ₹{stock!.avgPrice.toFixed(2)}
                       </p>
                     </div>
+                    <div className="text-right">
+                      <p className="text-white text-sm font-semibold">₹{stock!.currentPrice.toFixed(2)}</p>
+                      <p style={{color:'rgba(223,182,178,0.4)', fontSize:'0.7rem'}}>current</p>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span style={{color:'rgba(223,182,178,0.55)', fontSize:'0.8rem'}}>₹{stock!.currentPrice.toFixed(2)}</span>
+                  <div className="flex items-center justify-between pt-2" style={{borderTop:'1px solid rgba(133,79,108,0.15)'}}>
+                    <span style={{color:'rgba(223,182,178,0.5)', fontSize:'0.8rem'}}>
+                      Value: ₹{stock!.currentValue.toLocaleString('en-IN', {maximumFractionDigits:0})}
+                    </span>
                     <span className="text-sm font-semibold" style={{color: stock!.pl >= 0 ? '#4ade80' : '#f87171'}}>
                       {stock!.pl >= 0 ? '+' : ''}₹{Math.abs(stock!.pl).toFixed(0)} ({stock!.pl >= 0 ? '+' : ''}{stock!.plPercent.toFixed(2)}%)
                     </span>
@@ -156,7 +177,6 @@ export default function PortfolioScreen({ onBack, virtualCash, portfolio }: Port
         </div>
       )}
 
-      {/* Tip */}
       <div className="glass-card p-5 relative z-10" style={{borderColor:'rgba(249,115,22,0.25)'}}>
         <h3 className="text-white text-sm mb-1">💡 Portfolio Tip</h3>
         <p style={{color:'rgba(223,182,178,0.6)', fontSize:'0.8rem'}}>

@@ -69,6 +69,7 @@ export function useStockData(): UseStockDataReturn {
       setStocks(prev => mergeWithLive(prev, liveMap));
       setStatus('live');
       setLastRefreshed(new Date());
+      
       hasFetched.current = true;
     } catch {
       setStatus(hasFetched.current ? 'stale' : 'error');

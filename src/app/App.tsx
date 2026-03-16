@@ -16,6 +16,7 @@ import QuizTaking from './components/QuizTaking';
 import QuizResult from './components/QuizResult';
 import { calculateArenaResult } from './data/arenaData';
 import { getQuizById } from './data/quizzesData';
+import { useStockData } from './hooks/useStockData';
 
 type Screen = 
   | 'splash'
@@ -87,6 +88,7 @@ export default function App() {
   };
 
   const [userMode, setUserMode] = useState<string | null>(() => localStorage.getItem('stockheroes_mode'));
+  const stockData = useStockData();
   const [selectedArena, setSelectedArena] = useState<string>('apple-2012');
   const [arenaResultData, setArenaResultData] = useState<ArenaResultData | null>(null);
   const [virtualCash, setVirtualCash] = useState<number>(() => loadState('sh_cash', 0));
@@ -108,56 +110,56 @@ export default function App() {
   useEffect(() => { saveState('sh_points', userPoints); }, [userPoints]);
 
   const handleBuyStock = (stockId: string, quantity: number, price: number) => {
-    const totalCost = quantity * price;
-    
+    // Always use the latest live price
+    const liveStock = stockData.getStockById(stockId);
+    const livePrice = liveStock ? liveStock.price : price;
+    const totalCost = quantity * livePrice;
+
     if (totalCost > virtualCash) {
       return { success: false, message: 'Insufficient funds!' };
     }
 
     setVirtualCash(prev => prev - totalCost);
-    
+
     setPortfolio(prev => {
       const existingHolding = prev.find(h => h.stockId === stockId);
-      
       if (existingHolding) {
-        // Update average price
         const totalQuantity = existingHolding.quantity + quantity;
-        const totalValue = (existingHolding.avgPrice * existingHolding.quantity) + (price * quantity);
+        const totalValue = (existingHolding.avgPrice * existingHolding.quantity) + (livePrice * quantity);
         const newAvgPrice = totalValue / totalQuantity;
-        
-        return prev.map(h => 
-          h.stockId === stockId 
-            ? { ...h, quantity: totalQuantity, avgPrice: newAvgPrice }
-            : h
-        );
+        return prev.map(h => h.stockId === stockId ? { ...h, quantity: totalQuantity, avgPrice: newAvgPrice } : h);
       } else {
-        // Add new holding
-        return [...prev, { stockId, quantity, avgPrice: price }];
+        return [...prev, { stockId, quantity, avgPrice: livePrice }];
       }
     });
 
-    return { success: true, message: `Successfully bought ${quantity} shares!` };
+    return { success: true, message: `Bought ${quantity} share${quantity > 1 ? 's' : ''} at ₹${livePrice.toFixed(2)}` };
   };
 
   const handleSellStock = (stockId: string, quantity: number, price: number) => {
     const holding = portfolio.find(h => h.stockId === stockId);
-    
+
     if (!holding || holding.quantity < quantity) {
       return { success: false, message: 'Insufficient shares to sell!' };
     }
 
-    const totalValue = quantity * price;
-    setVirtualCash(prev => prev + totalValue);
-    
-    setPortfolio(prev => {
-      return prev.map(h => 
-        h.stockId === stockId 
-          ? { ...h, quantity: h.quantity - quantity }
-          : h
-      ).filter(h => h.quantity > 0);
-    });
+    // Always use latest live price
+    const liveStock = stockData.getStockById(stockId);
+    const livePrice = liveStock ? liveStock.price : price;
+    const totalValue = quantity * livePrice;
+    const profit = (livePrice - holding.avgPrice) * quantity;
+    const profitText = profit >= 0
+      ? `+₹${profit.toFixed(0)} profit`
+      : `-₹${Math.abs(profit).toFixed(0)} loss`;
 
-    return { success: true, message: `Successfully sold ${quantity} shares!` };
+    setVirtualCash(prev => prev + totalValue);
+
+    setPortfolio(prev =>
+      prev.map(h => h.stockId === stockId ? { ...h, quantity: h.quantity - quantity } : h)
+          .filter(h => h.quantity > 0)
+    );
+
+    return { success: true, message: `Sold ${quantity} share${quantity > 1 ? 's' : ''} at ₹${livePrice.toFixed(2)} (${profitText})` };
   };
 
   const handleArenaSubmit = (investment: number, holdPeriod: number, confidence: number) => {
@@ -284,6 +286,7 @@ export default function App() {
             portfolio={portfolio}
             onBuyStock={handleBuyStock}
             onSellStock={handleSellStock}
+            stockData={stockData}
           />
         );
       
@@ -293,6 +296,7 @@ export default function App() {
             onBack={() => setCurrentScreen('dashboard')}
             virtualCash={virtualCash}
             portfolio={portfolio}
+            stockData={stockData}
           />
         );
       
